@@ -22,15 +22,13 @@ pipeline {
                     def filePattern = "IMS_${params.VERSION}.zip"
                     echo "Looking for file: ${filePattern}"
 
+                    // Securely use credentials
                     withCredentials([usernamePassword(credentialsId: 'rhb-sftp-credentials', usernameVariable: 'SFTP_USER', passwordVariable: 'SFTP_PASSWORD')]) {
-                        // Use PowerShell instead of 'sh'
+                        // Use PowerShell to run the SFTP command
                         def checkFileCommand = """
-                        sftp -oBatchMode=no -b - ${SFTP_USER}:${SFTP_PASSWORD}@${SFTP_SERVER} <<EOF
-                        cd ${REMOTE_DIR}
-                        ls ${filePattern}
-                        EOF
+                        sftp -oBatchMode=no -b - ${SFTP_USER}:${SFTP_PASSWORD}@${SFTP_SERVER} <<< "cd ${REMOTE_DIR}; ls ${filePattern};"
                         """
-                        powershell(script: checkFileCommand, returnStatus: true) // Use powershell instead of sh
+                        powershell(script: checkFileCommand, returnStatus: true) // Execute the command in PowerShell
                     }
                 }
             }
@@ -40,15 +38,12 @@ pipeline {
             steps {
                 script {
                     def downloadCommand = """
-                    sftp -oBatchMode=no -b - ${SFTP_USER}:${SFTP_PASSWORD}@${SFTP_SERVER} <<EOF
-                    cd ${REMOTE_DIR}
-                    get ${filePattern} ${LOCAL_DIR}/
-                    bye
-                    EOF
+                    sftp -oBatchMode=no -b - ${SFTP_USER}:${SFTP_PASSWORD}@${SFTP_SERVER} <<< "cd ${REMOTE_DIR}; get ${filePattern} ${LOCAL_DIR}/; bye"
                     """
 
-                    withCredentials([usernamePassword(credentialsId: 'sftp-credentials', usernameVariable: 'SFTP_USER', passwordVariable: 'SFTP_PASSWORD')]) {
-                        powershell(script: downloadCommand) // Use PowerShell for Windows
+                    // Securely use credentials
+                    withCredentials([usernamePassword(credentialsId: 'rhb-sftp-credentials', usernameVariable: 'SFTP_USER', passwordVariable: 'SFTP_PASSWORD')]) {
+                        powershell(script: downloadCommand) // Execute the SFTP download command in PowerShell
                     }
                 }
             }
